@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from invoice_ops import __version__
-from invoice_ops.api import health
+from invoice_ops.api import health, invoices
 from invoice_ops.storage import get_storage
 
 
@@ -22,6 +22,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 def create_app() -> FastAPI:
     app = FastAPI(title="invoice-ops", version=__version__, lifespan=lifespan)
     app.include_router(health.router)
+    app.include_router(invoices.router)
     return app
 
 

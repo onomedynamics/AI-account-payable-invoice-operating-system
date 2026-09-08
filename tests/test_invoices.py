@@ -1,0 +1,72 @@
+from __future__ import annotations
+
+import io
+
+from fastapi.testclient import TestClient
+
+from invoice_ops.config import get_settings
+
+# Minimal valid-ish PDF header; enough for byte-level tests.
+PDF_BYTES = b"%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n"
+
+
+def _upload(client: TestClient, data: bytes, filename: str, content_type: str):
+    return client.post(
+        "/invoices",
+        files={"file": (filename, io.BytesIO(data), content_type)},
+    )
+
+
+def test_upload_creates_invoice(client: TestClient):
+    resp = _upload(client, PDF_BYTES, "acme-001.pdf", "application/pdf")
+    assert resp.status_code == 201, resp.text
+    body = resp.json()
+    assert body["status"] == "received"
+    assert body["source"] == "upload"
+    assert body["size_bytes"] == len(PDF_BYTES)
+    assert len(body["content_sha256"]) == 64
+    assert body["storage_key"].startswith("raw/")
+    assert body["original_filename"] == "acme-001.pdf"
+
+
+def test_upload_is_idempotent_on_identical_bytes(client: TestClient):
+    first = _upload(client, PDF_BYTES, "acme-001.pdf", "application/pdf")
+    assert first.status_code == 201
+
+    # Same bytes, different filename -> same invoice, 200 not 201.
+    second = _upload(client, PDF_BYTES, "renamed.pdf", "application/pdf")
+    assert second.status_code == 200
+    assert second.json()["id"] == first.json()["id"]
+
+
+def test_distinct_bytes_create_distinct_invoices(client: TestClient):
+    a = _upload(client, PDF_BYTES, "a.pdf", "application/pdf")
+    b = _upload(client, PDF_BYTES + b"x", "b.pdf", "application/pdf")
+    assert a.status_code == 201
+    assert b.status_code == 201
+    assert a.json()["id"] != b.json()["id"]
+
+
+def test_rejects_unsupported_content_type(client: TestClient):
+    resp = _upload(client, b"hello", "notes.txt", "text/plain")
+    assert resp.status_code == 415
+
+
+def test_rejects_empty_file(client: TestClient):
+    resp = _upload(client, b"", "empty.pdf", "application/pdf")
+    assert resp.status_code == 400
+
+
+def test_rejects_oversize_file(client: TestClient, monkeypatch):
+    monkeypatch.setenv("MAX_UPLOAD_BYTES", "16")
+    get_settings.cache_clear()
+    resp = _upload(client, PDF_BYTES, "big.pdf", "application/pdf")
+    assert resp.status_code == 413
+
+
+def test_stored_bytes_match_upload(client: TestClient):
+    from invoice_ops.storage import get_storage
+
+    resp = _upload(client, PDF_BYTES, "acme-002.pdf", "application/pdf")
+    key = resp.json()["storage_key"]
+    assert get_storage().get_object(key) == PDF_BYTES

@@ -39,6 +39,15 @@ class Settings(BaseSettings):
     s3_secret_key: str | None = None
     s3_bucket: str = "invoice-ops"
 
+    # --- Uploads --------------------------------------------------------
+    max_upload_bytes: int = 25 * 1024 * 1024  # 25 MiB
+    allowed_upload_content_types: tuple[str, ...] = (
+        "application/pdf",
+        "image/png",
+        "image/jpeg",
+        "image/tiff",
+    )
+
     # --- App ---------------------------------------------------------------
     app_env: Literal["dev", "ci", "prod"] = "dev"
 

@@ -12,6 +12,7 @@ dependencies = [
     "psycopg[binary]>=3.2",
     "pydantic>=2.9",
     "pydantic-settings>=2.6",
+    "python-multipart>=0.0.9",
     "boto3>=1.35",
 ]
 
@@ -40,11 +41,13 @@ src = ["src", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "ANN", "RUF"]
-ignore = ["ANN401"]
+# ANN401: allow `Any` in a few deliberate spots.
+# B008: FastAPI's `Depends(...)` in argument defaults is the framework idiom.
+ignore = ["ANN401", "B008"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["ANN201", "ANN001"]
-"migrations/**" = ["ANN", "E501", "F401"]
+"tests/**" = ["ANN"]
+"migrations/**" = ["ANN", "E501", "F401", "I001"]
 
 [tool.mypy]
 python_version = "3.12"

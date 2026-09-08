@@ -5,11 +5,11 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
+# Imported for its side effect: registers every ORM table on Base.metadata
+# so --autogenerate can diff models against the database.
+from invoice_ops import models
 from invoice_ops.config import get_settings
 from invoice_ops.db import Base
-
-# Import ORM model modules here so their tables register on Base.metadata.
-# None yet -- M1 adds invoice_ops.models.
 
 config = context.config
 config.set_main_option("sqlalchemy.url", get_settings().database_url)
