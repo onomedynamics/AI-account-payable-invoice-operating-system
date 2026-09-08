@@ -79,7 +79,7 @@ uv run uvicorn invoice_ops.api.main:app --reload
 Milestone-driven. Each milestone is a demoable vertical slice.
 
 - [x] **M0** Skeleton: config, DB/storage/queue interfaces, health probes, CI
-- [ ] **M1** Idempotent upload + raw-document storage + `invoices` row
+- [x] **M1** Idempotent upload + raw-document storage + `invoices` row
 - [ ] **M2** OCR + LLM extraction into a strict schema with confidence; eval v1
 - [ ] **M3** Deterministic vendor + PO matching
 - [ ] **M4** Validation engine (per-rule unit tests)
