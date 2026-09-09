@@ -73,3 +73,24 @@ def test_stored_bytes_match_upload(client: TestClient):
     resp = _upload(client, PDF_BYTES, "acme-002.pdf", "application/pdf")
     key = resp.json()["storage_key"]
     assert get_storage().get_object(key) == PDF_BYTES
+
+
+def test_list_and_get_invoice(client: TestClient):
+    assert client.get("/invoices").json() == []
+
+    created = _upload(client, PDF_BYTES, "acme-003.pdf", "application/pdf").json()
+
+    listing = client.get("/invoices").json()
+    assert [i["id"] for i in listing] == [created["id"]]
+
+    detail = client.get(f"/invoices/{created['id']}")
+    assert detail.status_code == 200
+    body = detail.json()
+    assert body["id"] == created["id"]
+    assert body["status"] == "received"
+    assert body["extractions"] == []  # stub_enqueue kept extraction from running
+
+
+def test_get_unknown_invoice_is_404(client: TestClient):
+    resp = client.get("/invoices/00000000-0000-0000-0000-000000000000")
+    assert resp.status_code == 404
