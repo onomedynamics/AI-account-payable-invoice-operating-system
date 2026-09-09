@@ -71,6 +71,11 @@ def ingest_upload(
             raise
         return IngestResult(invoice=winner, created=False)
 
-    # Kick off the (stubbed) extraction pipeline. Eager in dev, via Redis in prod.
+    # Commit before enqueuing: the extraction task opens its own session (its own
+    # process, under a real broker) and must be able to see this row. A crash in
+    # the gap between commit and enqueue leaves an invoice stuck in RECEIVED,
+    # which a later sweeper can re-enqueue -- acceptable, and far better than
+    # enqueuing work for a row that might roll back.
+    session.commit()
     extract_invoice.delay(str(invoice.id))
     return IngestResult(invoice=invoice, created=True)

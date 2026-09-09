@@ -1,17 +1,19 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
+from unittest.mock import MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, event
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
+from invoice_ops import db as db_module
 from invoice_ops import models  # noqa: F401 - register tables on Base.metadata
 from invoice_ops.api.main import create_app
 from invoice_ops.config import get_settings
-from invoice_ops.db import Base, get_db
+from invoice_ops.db import Base
 
 
 @pytest.fixture(autouse=True)
@@ -26,8 +28,10 @@ def _isolated_env(tmp_path, monkeypatch) -> Iterator[None]:
 
 
 @pytest.fixture
-def db_engine():
-    """A private in-memory SQLite DB, schema created from the ORM metadata."""
+def db_engine() -> Iterator[object]:
+    """A private in-memory SQLite DB, wired in as the module-level engine so
+    request sessions *and* `session_scope()` (used by eager Celery tasks) share
+    it."""
     engine = create_engine(
         "sqlite://",
         connect_args={"check_same_thread": False},
@@ -41,36 +45,52 @@ def db_engine():
         cur.close()
 
     Base.metadata.create_all(engine)
-    yield engine
-    engine.dispose()
+
+    original = db_module.engine
+    db_module.engine = engine
+    db_module.SessionLocal.configure(bind=engine)
+    try:
+        yield engine
+    finally:
+        db_module.SessionLocal.configure(bind=original)
+        db_module.engine = original
+        engine.dispose()
 
 
 @pytest.fixture
 def db_session(db_engine) -> Iterator[Session]:
-    factory = sessionmaker(bind=db_engine, autoflush=False, expire_on_commit=False)
-    session = factory()
+    session = db_module.SessionLocal()
     try:
         yield session
     finally:
         session.close()
 
 
+@pytest.fixture(autouse=True)
+def stub_enqueue(monkeypatch) -> MagicMock:
+    """Stop `ingest_upload` from actually running extraction inline (eager mode).
+    Tests that want the pipeline call `run_extraction` / the task directly."""
+    stub = MagicMock(name="extract_invoice")
+    monkeypatch.setattr("invoice_ops.services.ingestion.extract_invoice", stub)
+    return stub
+
+
 @pytest.fixture
 def client(db_engine) -> Iterator[TestClient]:
-    factory = sessionmaker(bind=db_engine, autoflush=False, expire_on_commit=False)
-
-    def _get_db_override() -> Iterator[Session]:
-        session = factory()
-        try:
-            yield session
-            session.commit()
-        except Exception:
-            session.rollback()
-            raise
-        finally:
-            session.close()
-
-    app = create_app()
-    app.dependency_overrides[get_db] = _get_db_override
-    with TestClient(app) as test_client:
+    with TestClient(create_app()) as test_client:
         yield test_client
+
+
+def _make_pdf(text: str) -> bytes:
+    from fpdf import FPDF
+
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Helvetica", size=12)
+    pdf.multi_cell(0, 8, text=text)
+    return bytes(pdf.output())
+
+
+@pytest.fixture
+def make_pdf():
+    return _make_pdf

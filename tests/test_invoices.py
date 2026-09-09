@@ -17,7 +17,7 @@ def _upload(client: TestClient, data: bytes, filename: str, content_type: str):
     )
 
 
-def test_upload_creates_invoice(client: TestClient):
+def test_upload_creates_invoice(client: TestClient, stub_enqueue):
     resp = _upload(client, PDF_BYTES, "acme-001.pdf", "application/pdf")
     assert resp.status_code == 201, resp.text
     body = resp.json()
@@ -27,9 +27,10 @@ def test_upload_creates_invoice(client: TestClient):
     assert len(body["content_sha256"]) == 64
     assert body["storage_key"].startswith("raw/")
     assert body["original_filename"] == "acme-001.pdf"
+    stub_enqueue.delay.assert_called_once_with(body["id"])
 
 
-def test_upload_is_idempotent_on_identical_bytes(client: TestClient):
+def test_upload_is_idempotent_on_identical_bytes(client: TestClient, stub_enqueue):
     first = _upload(client, PDF_BYTES, "acme-001.pdf", "application/pdf")
     assert first.status_code == 201
 
@@ -37,6 +38,8 @@ def test_upload_is_idempotent_on_identical_bytes(client: TestClient):
     second = _upload(client, PDF_BYTES, "renamed.pdf", "application/pdf")
     assert second.status_code == 200
     assert second.json()["id"] == first.json()["id"]
+    # Extraction enqueued once, for the create only.
+    stub_enqueue.delay.assert_called_once()
 
 
 def test_distinct_bytes_create_distinct_invoices(client: TestClient):

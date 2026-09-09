@@ -80,7 +80,10 @@ Milestone-driven. Each milestone is a demoable vertical slice.
 
 - [x] **M0** Skeleton: config, DB/storage/queue interfaces, health probes, CI
 - [x] **M1** Idempotent upload + raw-document storage + `invoices` row
-- [ ] **M2** OCR + LLM extraction into a strict schema with confidence; eval v1
+- [~] **M2** LLM extraction into a strict schema with confidence
+  - [x] **M2a** pdfplumber text + `ExtractedInvoice` schema + `Extraction` model + OpenRouter client + validate-and-retry, wired into the task
+  - [ ] **M2b** eval harness against labelled real invoices + one live smoke test
+  - [ ] later: OCR fallback for scanned PDFs / image uploads
 - [ ] **M3** Deterministic vendor + PO matching
 - [ ] **M4** Validation engine (per-rule unit tests)
 - [ ] **M5** Approval policy + invoice lifecycle state machine + audit log

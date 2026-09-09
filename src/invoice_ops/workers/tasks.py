@@ -1,10 +1,8 @@
-"""Celery tasks.
-
-M1 wires ``extract_invoice`` as a stub so the ingestion path is complete end to
-end. M2 replaces the body with real OCR + schema-constrained LLM extraction.
-"""
+"""Celery tasks."""
 
 from __future__ import annotations
+
+import uuid
 
 from celery.utils.log import get_task_logger
 
@@ -20,11 +18,19 @@ def ping() -> str:
 
 @celery_app.task(name="invoice_ops.extract_invoice")
 def extract_invoice(invoice_id: str) -> None:
-    """Stub until M2.
+    """Text-extract + LLM-extract one invoice. See services.extraction."""
+    from invoice_ops.db import session_scope
+    from invoice_ops.services.extraction import run_extraction
 
-    Real work: load the raw document from storage, run OCR + layout analysis,
-    call the LLM with a schema-constrained request, persist an ``Extraction``
-    row with per-field confidence, and advance the invoice
-    RECEIVED -> EXTRACTING -> EXTRACTED (or FAILED with a reason).
-    """
-    logger.info("extract_invoice stub invoked for invoice %s", invoice_id)
+    with session_scope() as session:
+        extraction = run_extraction(session, uuid.UUID(invoice_id))
+
+    if extraction is None:
+        logger.info("extract_invoice: %s not in RECEIVED, skipped", invoice_id)
+    else:
+        logger.info(
+            "extract_invoice: %s ok=%s attempts=%s",
+            invoice_id,
+            extraction.ok,
+            extraction.attempts,
+        )

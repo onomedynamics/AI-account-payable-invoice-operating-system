@@ -48,6 +48,15 @@ class Settings(BaseSettings):
         "image/tiff",
     )
 
+    # --- LLM extraction (OpenRouter) ---------------------------------
+    openrouter_api_key: str | None = None
+    openrouter_base_url: str = "https://openrouter.ai/api/v1"
+    llm_model: str = "openai/gpt-4o-mini"
+    llm_timeout_seconds: float = 60.0
+    llm_temperature: float = 0.0
+    # Extra attempts after the first on invalid / unparseable model output.
+    llm_max_retries: int = 1
+
     # --- App ---------------------------------------------------------------
     app_env: Literal["dev", "ci", "prod"] = "dev"
 
