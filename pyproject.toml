@@ -66,5 +66,8 @@ module = ["invoice_ops.workers.*"]
 disallow_untyped_decorators = false
 
 [tool.pytest.ini_options]
-addopts = "-q"
+addopts = "-q -m 'not live'"
 testpaths = ["tests"]
+markers = [
+    "live: exercises real external services (needs OPENROUTER_API_KEY); run with -m live",
+]

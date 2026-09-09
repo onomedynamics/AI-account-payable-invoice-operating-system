@@ -33,6 +33,10 @@ fix:
 test:
     uv run pytest
 
+# Run the extraction eval harness (needs OPENROUTER_API_KEY + evals/fixtures/*)
+eval:
+    uv run python evals/run.py
+
 # Apply migrations
 migrate:
     uv run alembic upgrade head

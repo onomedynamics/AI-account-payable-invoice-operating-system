@@ -1,0 +1,19 @@
+{
+  "supplier_name": "ACME Supplies Ltd",
+  "supplier_tax_id": "IT01234567890",
+  "invoice_number": "INV-2026-0042",
+  "invoice_date": "2026-02-03",
+  "currency": "EUR",
+  "purchase_order_number": "PO-5567",
+  "line_items": [
+    {
+      "description": "Widget, blue, 10mm",
+      "quantity": "10",
+      "unit_price": "5.00",
+      "line_total": "50.00"
+    }
+  ],
+  "subtotal": "50.00",
+  "tax_amount": "11.00",
+  "total": "61.00"
+}
