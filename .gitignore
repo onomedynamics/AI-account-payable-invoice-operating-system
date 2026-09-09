@@ -14,6 +14,9 @@ htmlcov/
 dev.db
 _storage/
 *.log
+_srv.out
+_srv.err
+sample.pdf
 
 # OS / editor
 .DS_Store
