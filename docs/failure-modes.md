@@ -52,7 +52,7 @@ correct long-term fix is a structured "other charges" field in the
 extraction schema so this can be checked exactly instead of approximately;
 that's a real schema change, out of scope for a one-line severity fix.
 
-## One finding surfaced, not fixed -- needs a decision
+## One finding surfaced -- reviewed, policy confirmed as-is
 
 **None of the 8 real invoices reference a purchase order.** This business
 runs same-day spot-market produce purchases (buy today's tomatoes at
@@ -63,16 +63,23 @@ value, that means **100% of this business's real day-to-day invoices would
 always route to human review**, regardless of how clean everything else is
 -- auto-approval would never fire in practice for their actual workflow.
 
-This is not a bug to silently patch; it's a real policy question:
+This was not a bug to silently patch -- it's a real policy question, and it
+was put to the business rather than decided unilaterally. **Decision: keep
+the PO requirement as-is.** Auto-approval is effectively unused for today's
+spot-market purchases -- every such invoice goes to human review regardless
+of quality -- and that's accepted as the right tradeoff for now: safety over
+automation until there's a deliberate reason to relax it. No code change.
 
-- Keep the PO requirement as-is: safest, but auto-approval is effectively
-  unused for spot-market purchases. Every invoice needs a human regardless
-  of quality.
+Two alternatives were considered and set aside, not built:
+
 - Relax it for known/trusted recurring vendors (the ones already in the
   vendor table, matched with high confidence) below some amount threshold.
 - Track a running per-vendor spend pattern and flag only invoices that
   deviate from it, instead of requiring a PO at all for this class of
   purchase.
+
+Revisit if the review queue's real-world volume makes the all-human-review
+cost worth trading off against.
 
 `evals/discrepancy_eval.py`'s scenarios seed a synthetic PO for every
 invoice specifically to exercise the PO-comparison rules despite this gap --
