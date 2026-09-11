@@ -13,6 +13,29 @@
   <p class="error">Failure reason: {{ invoice.failure_reason }}</p>
 {% endif %}
 
+<div class="summary-strip">
+  <div class="summary-cell">
+    <span class="eyebrow">Supplier</span>
+    <span class="value {{ 'muted-value' if not summary.supplier }}">{{ summary.supplier or "not yet extracted" }}</span>
+  </div>
+  <div class="summary-cell">
+    <span class="eyebrow">Total</span>
+    <span class="value {{ 'muted-value' if not summary.total }}">{% if summary.total %}{{ summary.total }} {{ summary.currency or "" }}{% else %}&mdash;{% endif %}</span>
+  </div>
+  <div class="summary-cell">
+    <span class="eyebrow">Vendor match</span>
+    <span class="value {{ 'muted-value' if not summary.vendor_name }}">{{ summary.vendor_name or "not identified" }}</span>
+  </div>
+  <div class="summary-cell">
+    <span class="eyebrow">Purchase order</span>
+    <span class="value {{ 'muted-value' if not summary.po_number }}">{{ summary.po_number or "not matched" }}</span>
+  </div>
+  <div class="summary-cell">
+    <span class="eyebrow">Confidence</span>
+    <span class="value {{ 'muted-value' if summary.total_confidence is none }}">{% if summary.total_confidence is not none %}{{ (summary.total_confidence * 100) | round | int }}%{% else %}&mdash;{% endif %}</span>
+  </div>
+</div>
+
 {% if can_decide %}
 <section class="decision-box">
   <h3>Review decision</h3>

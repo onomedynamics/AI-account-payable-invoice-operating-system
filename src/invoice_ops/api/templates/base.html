@@ -8,7 +8,13 @@
 </head>
 <body>
   <header>
-    <a class="brand" href="/ui/invoices">invoice-ops</a>
+    <a class="brand" href="/ui/invoices">
+      <span class="brand-mark">IO</span>
+      <span class="brand-text">
+        <span class="brand-name">Invoice Ops</span>
+        <span class="brand-tag">Accounts payable pipeline</span>
+      </span>
+    </a>
     <nav>
       <a href="/ui/invoices">Queue</a>
       <a href="/docs">API</a>
@@ -21,5 +27,6 @@
   <main>
     {% block content %}{% endblock %}
   </main>
+  <footer>Invoice Ops &middot; AI extracts, deterministic rules decide.</footer>
 </body>
 </html>

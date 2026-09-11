@@ -2,8 +2,31 @@
 {% block title %}Queue - invoice-ops{% endblock %}
 {% block content %}
 
+<div class="stats-row">
+  <div class="stat-card accent-all">
+    <div class="stat-value">{{ counts.total }}</div>
+    <div class="stat-label">Total invoices</div>
+  </div>
+  <div class="stat-card accent-review">
+    <div class="stat-value">{{ counts.needs_review }}</div>
+    <div class="stat-label">Needs review</div>
+  </div>
+  <div class="stat-card accent-approved">
+    <div class="stat-value">{{ counts.approved }}</div>
+    <div class="stat-label">Approved</div>
+  </div>
+  <div class="stat-card accent-rejected">
+    <div class="stat-value">{{ counts.rejected }}</div>
+    <div class="stat-label">Rejected / failed</div>
+  </div>
+</div>
+
 <section class="upload-box">
-  <h2>Upload an invoice</h2>
+  <span class="upload-icon">&#8593;</span>
+  <div class="upload-copy">
+    <h2>Upload an invoice</h2>
+    <p>PDF, PNG, JPEG or TIFF &middot; runs the full extraction, matching, validation and approval pipeline automatically</p>
+  </div>
   <form method="post" action="/ui/invoices" enctype="multipart/form-data" class="upload-form">
     <input type="file" name="file" accept=".pdf,.png,.jpg,.jpeg,.tiff" required>
     <button type="submit">Upload</button>
@@ -14,8 +37,8 @@
   <div class="section-head">
     <h2>Invoices</h2>
     <div class="filters">
-      <a href="/ui/invoices" class="{{ 'active' if not status_filter else '' }}">all</a>
-      <a href="/ui/invoices?status_filter=needs_review" class="{{ 'active' if status_filter == 'needs_review' else '' }}">needs review</a>
+      <a href="/ui/invoices" class="{{ 'active' if not status_filter else '' }}">All</a>
+      <a href="/ui/invoices?status_filter=needs_review" class="{{ 'active' if status_filter == 'needs_review' else '' }}">Needs review</a>
     </div>
   </div>
 
@@ -33,7 +56,7 @@
     </tbody>
   </table>
   {% else %}
-  <p class="empty">No invoices yet.</p>
+  <p class="empty">No invoices yet. Upload one above to see the pipeline run end to end.</p>
   {% endif %}
 </section>
 {% endblock %}

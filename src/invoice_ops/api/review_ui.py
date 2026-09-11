@@ -16,7 +16,7 @@ from urllib.parse import quote
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, UploadFile, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from invoice_ops.config import get_settings
@@ -76,6 +76,19 @@ def _export_view(e: Export) -> dict[str, Any]:
     }
 
 
+def _status_counts(db: Session) -> dict[str, int]:
+    rows = db.execute(select(Invoice.status, func.count()).group_by(Invoice.status)).all()
+    by_status = {s.value: n for s, n in rows}
+    approved = {"auto_approved", "approved"}
+    rejected = {"rejected", "failed"}
+    return {
+        "total": sum(by_status.values()),
+        "needs_review": by_status.get("needs_review", 0),
+        "approved": sum(n for s, n in by_status.items() if s in approved),
+        "rejected": sum(n for s, n in by_status.items() if s in rejected),
+    }
+
+
 @router.get("", response_class=RedirectResponse)
 def ui_root() -> RedirectResponse:
     return RedirectResponse(url="/ui/invoices", status_code=status.HTTP_303_SEE_OTHER)
@@ -94,8 +107,30 @@ def ui_queue(
     return _templates.TemplateResponse(
         request,
         "queue.html",
-        {"invoices": invoices, "status_filter": status_filter},
+        {"invoices": invoices, "status_filter": status_filter, "counts": _status_counts(db)},
     )
+
+
+def _summary_view(invoice: Invoice) -> dict[str, Any]:
+    latest_extraction = invoice.extractions[-1] if invoice.extractions else None
+    latest_match = invoice.matches[-1] if invoice.matches else None
+    invoice_data: dict[str, Any] = {}
+    confidence: dict[str, float] = {}
+    if latest_extraction is not None and latest_extraction.ok:
+        invoice_data = (latest_extraction.result_json or {}).get("invoice", {})
+        confidence = latest_extraction.field_confidence or {}
+    return {
+        "supplier": invoice_data.get("supplier_name"),
+        "total": invoice_data.get("total"),
+        "currency": invoice_data.get("currency"),
+        "total_confidence": confidence.get("total"),
+        "vendor_name": latest_match.vendor.legal_name
+        if latest_match and latest_match.vendor
+        else None,
+        "po_number": latest_match.purchase_order.po_number
+        if latest_match and latest_match.purchase_order
+        else None,
+    }
 
 
 @router.get("/invoices/{invoice_id}", response_class=HTMLResponse)
@@ -107,6 +142,7 @@ def ui_invoice_detail(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="invoice not found")
     context = {
         "invoice": invoice,
+        "summary": _summary_view(invoice),
         "extractions": [_extraction_view(e) for e in reversed(invoice.extractions)],
         "matches": [_match_view(m) for m in reversed(invoice.matches)],
         "validations": [_validation_view(v) for v in reversed(invoice.validations)],
