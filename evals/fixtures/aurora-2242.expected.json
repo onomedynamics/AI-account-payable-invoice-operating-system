@@ -1,0 +1,25 @@
+{
+  "supplier_name": "L'AURORA ORTOFRUTTA S.R.L.",
+  "supplier_tax_id": "IT66666666666",
+  "invoice_number": "2242/2026",
+  "invoice_date": "2026-07-23",
+  "currency": "EUR",
+  "purchase_order_number": null,
+  "line_items": [
+    {
+      "description": "ZUCCHINA VERDE - IT",
+      "quantity": "101",
+      "unit_price": "0.650",
+      "line_total": "65.65"
+    },
+    {
+      "description": "CASSE IN PLASTICA",
+      "quantity": "10",
+      "unit_price": "0.900",
+      "line_total": "9.00"
+    }
+  ],
+  "subtotal": "75.65",
+  "tax_amount": "3.03",
+  "total": "78.68"
+}

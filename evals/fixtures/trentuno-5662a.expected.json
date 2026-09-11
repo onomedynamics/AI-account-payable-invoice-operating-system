@@ -1,0 +1,25 @@
+{
+  "supplier_name": "ORTOFRUTTICOLA TRENTUNO S.R.L.",
+  "supplier_tax_id": "IT44444444444",
+  "invoice_number": "5662 A/2026",
+  "invoice_date": "2026-07-23",
+  "currency": "EUR",
+  "purchase_order_number": null,
+  "line_items": [
+    {
+      "description": "POMODORO CILIEGINO",
+      "quantity": "134",
+      "unit_price": "1.4000",
+      "line_total": "187.60"
+    },
+    {
+      "description": "CARTONE 30X40 LATERALE ALTO",
+      "quantity": "20",
+      "unit_price": "0.8700",
+      "line_total": "17.40"
+    }
+  ],
+  "subtotal": "205.60",
+  "tax_amount": "8.22",
+  "total": "213.82"
+}

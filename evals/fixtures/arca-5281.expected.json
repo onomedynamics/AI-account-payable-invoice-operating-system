@@ -1,0 +1,25 @@
+{
+  "supplier_name": "AR.CA. S.R.L. ORTOFRUTTICOLI",
+  "supplier_tax_id": "IT33333333333",
+  "invoice_number": "5281",
+  "invoice_date": "2026-07-23",
+  "currency": "EUR",
+  "purchase_order_number": null,
+  "line_items": [
+    {
+      "description": "POM. DATTERINO CAT.II (IT)",
+      "quantity": "299",
+      "unit_price": "2.000",
+      "line_total": "598.00"
+    },
+    {
+      "description": "CARTONE 40X30X11 FRAGOLINO",
+      "quantity": "70",
+      "unit_price": "0.630",
+      "line_total": "44.10"
+    }
+  ],
+  "subtotal": "644.20",
+  "tax_amount": "25.77",
+  "total": "669.97"
+}

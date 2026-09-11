@@ -1,0 +1,25 @@
+{
+  "supplier_name": "AGROPOL SRL",
+  "supplier_tax_id": "IT88888888888",
+  "invoice_number": "3995",
+  "invoice_date": "2026-07-23",
+  "currency": "EUR",
+  "purchase_order_number": null,
+  "line_items": [
+    {
+      "description": "POMOD. PIXEL CAT II (IT)",
+      "quantity": "417",
+      "unit_price": "0.800",
+      "line_total": "333.60"
+    },
+    {
+      "description": "FLAP CARTONE 30X40",
+      "quantity": "60",
+      "unit_price": "0.880",
+      "line_total": "52.80"
+    }
+  ],
+  "subtotal": "388.20",
+  "tax_amount": "15.53",
+  "total": "403.73"
+}

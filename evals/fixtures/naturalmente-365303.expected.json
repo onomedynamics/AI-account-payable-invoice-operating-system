@@ -1,0 +1,25 @@
+{
+  "supplier_name": "NATURALMENTE SRL",
+  "supplier_tax_id": "IT77777777777",
+  "invoice_number": "3653",
+  "invoice_date": "2026-07-23",
+  "currency": "EUR",
+  "purchase_order_number": null,
+  "line_items": [
+    {
+      "description": "POM. GRAPP. SU CART. 40X30X15",
+      "quantity": "194",
+      "unit_price": "0.500",
+      "line_total": "97.00"
+    },
+    {
+      "description": "CARTONE 30X40X15",
+      "quantity": "30",
+      "unit_price": "0.900",
+      "line_total": "27.00"
+    }
+  ],
+  "subtotal": "124.00",
+  "tax_amount": "4.96",
+  "total": "128.96"
+}

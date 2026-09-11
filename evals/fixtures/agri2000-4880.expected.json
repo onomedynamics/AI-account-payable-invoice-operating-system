@@ -1,0 +1,25 @@
+{
+  "supplier_name": "AGRI 2000 S.R.L.",
+  "supplier_tax_id": "IT55555555555",
+  "invoice_number": "4880/2026",
+  "invoice_date": "2026-07-23",
+  "currency": "EUR",
+  "purchase_order_number": null,
+  "line_items": [
+    {
+      "description": "PEPERONI ROSSI CAT II (IT)",
+      "quantity": "280",
+      "unit_price": "1.300",
+      "line_total": "364.00"
+    },
+    {
+      "description": "CASSE IN CARTONE 30X50 0.500g",
+      "quantity": "40",
+      "unit_price": "1.000",
+      "line_total": "40.00"
+    }
+  ],
+  "subtotal": "405.20",
+  "tax_amount": "16.21",
+  "total": "421.41"
+}

@@ -1,0 +1,31 @@
+{
+  "supplier_name": "ORTOFRUTTICOLA MAGLIOZZI S.R.L.",
+  "supplier_tax_id": "IT22222222222",
+  "invoice_number": "12882",
+  "invoice_date": "2026-07-27",
+  "currency": "EUR",
+  "purchase_order_number": null,
+  "line_items": [
+    {
+      "description": "ROSMARINO vassoio",
+      "quantity": "5",
+      "unit_price": "1.00",
+      "line_total": "5.00"
+    },
+    {
+      "description": "ERBA CIPOLLINA vassoio",
+      "quantity": "3",
+      "unit_price": "1.80",
+      "line_total": "5.40"
+    },
+    {
+      "description": "PREZZEMOLO RICCIO vassoio",
+      "quantity": "5",
+      "unit_price": "1.70",
+      "line_total": "8.50"
+    }
+  ],
+  "subtotal": "19.15",
+  "tax_amount": "0.82",
+  "total": "19.97"
+}
