@@ -37,13 +37,22 @@ test:
 eval:
     uv run python evals/run.py
 
+# Discrepancy-detection precision/recall (pure Python, no key needed)
+discrepancy-eval:
+    uv run python evals/discrepancy_eval.py
+
 # Apply migrations
 migrate:
     uv run alembic upgrade head
 
-# Insert demo vendors/POs so matching has something to match against
+# Insert one demo vendor + PO (so you can see the auto-approve path)
 seed:
     uv run python scripts/seed_demo.py
+
+# Insert vendors matching evals/fixtures/*.pdf (so uploading those shows a
+# real vendor match with no PO -- your actual confirmed policy, live)
+seed-eval-vendors:
+    uv run python scripts/seed_eval_vendors.py
 
 # Create a new migration from model changes:  just revision "add invoices table"
 revision message:
