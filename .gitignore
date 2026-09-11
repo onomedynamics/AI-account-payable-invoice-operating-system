@@ -18,6 +18,9 @@ _srv.out
 _srv.err
 sample.pdf
 
+# Unredacted real documents -- never committed. See evals/fixtures/.private/README.md
+evals/fixtures/.private/
+
 # OS / editor
 .DS_Store
 .idea/

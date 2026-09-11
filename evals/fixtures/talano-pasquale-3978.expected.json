@@ -1,0 +1,19 @@
+{
+  "supplier_name": "TALANO PASQUALE S.R.L.",
+  "supplier_tax_id": "IT00000000000",
+  "invoice_number": "3978",
+  "invoice_date": "2026-07-26",
+  "currency": "EUR",
+  "purchase_order_number": null,
+  "line_items": [
+    {
+      "description": "FAGIOLI BORLOTTI",
+      "quantity": "163.6",
+      "unit_price": "3.70",
+      "line_total": "605.32"
+    }
+  ],
+  "subtotal": "605.62",
+  "tax_amount": "24.22",
+  "total": "629.84"
+}
