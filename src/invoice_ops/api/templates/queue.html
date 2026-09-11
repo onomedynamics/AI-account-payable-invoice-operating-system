@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Queue - invoice-ops{% endblock %}
+{% block content %}
+
+<section class="upload-box">
+  <h2>Upload an invoice</h2>
+  <form method="post" action="/ui/invoices" enctype="multipart/form-data" class="upload-form">
+    <input type="file" name="file" accept=".pdf,.png,.jpg,.jpeg,.tiff" required>
+    <button type="submit">Upload</button>
+  </form>
+</section>
+
+<section>
+  <div class="section-head">
+    <h2>Invoices</h2>
+    <div class="filters">
+      <a href="/ui/invoices" class="{{ 'active' if not status_filter else '' }}">all</a>
+      <a href="/ui/invoices?status_filter=needs_review" class="{{ 'active' if status_filter == 'needs_review' else '' }}">needs review</a>
+    </div>
+  </div>
+
+  {% if invoices %}
+  <table>
+    <thead><tr><th>File</th><th>Status</th><th>Uploaded</th></tr></thead>
+    <tbody>
+    {% for inv in invoices %}
+      <tr>
+        <td><a href="/ui/invoices/{{ inv.id }}">{{ inv.original_filename }}</a></td>
+        <td><span class="badge badge-{{ inv.status.value }}">{{ inv.status.value }}</span></td>
+        <td>{{ inv.created_at.strftime("%Y-%m-%d %H:%M") }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">No invoices yet.</p>
+  {% endif %}
+</section>
+{% endblock %}

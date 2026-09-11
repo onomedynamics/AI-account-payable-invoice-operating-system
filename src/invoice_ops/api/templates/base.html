@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}invoice-ops{% endblock %}</title>
+  <link rel="stylesheet" href="/ui/static/style.css">
+</head>
+<body>
+  <header>
+    <a class="brand" href="/ui/invoices">invoice-ops</a>
+    <nav>
+      <a href="/ui/invoices">Queue</a>
+      <a href="/docs">API</a>
+    </nav>
+  </header>
+  {% set flash = request.query_params.get("flash") %}
+  {% if flash %}
+    <div class="flash">{{ flash }}</div>
+  {% endif %}
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

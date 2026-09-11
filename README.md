@@ -68,7 +68,9 @@ uv sync
 cp .env.example .env          # dev defaults need no services
 uv run alembic upgrade head
 uv run uvicorn invoice_ops.api.main:app --reload
-# GET http://127.0.0.1:8000/health/ready
+# http://127.0.0.1:8000/health/ready   -- health probe
+# http://127.0.0.1:8000/ui/invoices    -- review UI (upload, queue, approve/reject)
+# http://127.0.0.1:8000/docs           -- JSON API
 ```
 
 `just` recipes wrap the common commands (`just api`, `just test`, `just lint`,
@@ -89,7 +91,8 @@ Milestone-driven. Each milestone is a demoable vertical slice.
       PO currency/vendor cross-check, duplicate detection), per-rule unit tests
 - [x] **M5** Approval policy (validation + confidence + vendor/PO identification
       -> auto-approve or needs-review) + full state-machine enforcement + append-only audit log
-- [ ] **M6** Human review UI (approve/reject API already exists; this is the UI on top)
+- [x] **M6** Human review UI: server-rendered queue + detail pages (upload,
+      extraction/match/validation/audit view, approve/reject), no JS/build step
 - [ ] **M7** Mocked accounting export (signed artifact + contract doc)
 - [ ] **M8** Full eval harness: discrepancy precision/recall + failure-modes writeup
 - [ ] **M9** (optional) Email ingestion, 3-way match with goods receipt

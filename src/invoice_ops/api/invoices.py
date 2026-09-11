@@ -16,7 +16,7 @@ from invoice_ops.db import get_db
 from invoice_ops.domain.state import InvoiceStatus
 from invoice_ops.models import Invoice, InvoiceMatch, InvoiceSource
 from invoice_ops.services.approval import record_human_decision
-from invoice_ops.services.ingestion import ingest_upload
+from invoice_ops.services.ingestion import UploadRejected, ingest_upload, validate_upload
 
 router = APIRouter(prefix="/invoices", tags=["invoices"])
 
@@ -118,22 +118,12 @@ def upload_invoice(
     blocking storage + DB calls do not stall the event loop.
     """
     settings = get_settings()
-
     content_type = file.content_type or "application/octet-stream"
-    if content_type not in settings.allowed_upload_content_types:
-        raise HTTPException(
-            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-            detail=f"unsupported content type: {content_type}",
-        )
-
     data = file.file.read()
-    if not data:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="empty file")
-    if len(data) > settings.max_upload_bytes:
-        raise HTTPException(
-            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
-            detail=f"file exceeds {settings.max_upload_bytes} bytes",
-        )
+    try:
+        validate_upload(data, content_type, settings)
+    except UploadRejected as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
 
     result = ingest_upload(
         db,

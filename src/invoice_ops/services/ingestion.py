@@ -16,6 +16,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from invoice_ops.config import Settings
 from invoice_ops.domain.state import InvoiceStatus
 from invoice_ops.models import Invoice, InvoiceSource
 from invoice_ops.storage import get_storage
@@ -26,6 +27,27 @@ from invoice_ops.workers.tasks import extract_invoice
 class IngestResult:
     invoice: Invoice
     created: bool
+
+
+class UploadRejected(Exception):
+    """A guard failed before any DB/storage write happened. Callers (the JSON
+    API, the review UI) map status_code to their own response type."""
+
+    def __init__(self, status_code: int, detail: str) -> None:
+        super().__init__(detail)
+        self.status_code = status_code
+        self.detail = detail
+
+
+def validate_upload(data: bytes, content_type: str, settings: Settings) -> None:
+    """Shared guard for both the JSON API and the server-rendered UI, so the
+    rules (allowed types, size limit, non-empty) live in exactly one place."""
+    if content_type not in settings.allowed_upload_content_types:
+        raise UploadRejected(415, f"unsupported content type: {content_type}")
+    if not data:
+        raise UploadRejected(400, "empty file")
+    if len(data) > settings.max_upload_bytes:
+        raise UploadRejected(413, f"file exceeds {settings.max_upload_bytes} bytes")
 
 
 def _storage_key(digest: str, filename: str) -> str:

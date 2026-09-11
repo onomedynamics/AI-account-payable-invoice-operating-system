@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% block title %}{{ invoice.original_filename }} - invoice-ops{% endblock %}
+{% block content %}
+
+<a class="back" href="/ui/invoices">&larr; Queue</a>
+<h2>{{ invoice.original_filename }}</h2>
+<p class="meta">
+  <span class="badge badge-{{ invoice.status.value }}">{{ invoice.status.value }}</span>
+  uploaded {{ invoice.created_at.strftime("%Y-%m-%d %H:%M") }}
+  &middot; sha256 <code>{{ invoice.content_sha256[:12] }}&hellip;</code>
+</p>
+{% if invoice.failure_reason %}
+  <p class="error">Failure reason: {{ invoice.failure_reason }}</p>
+{% endif %}
+
+{% if can_decide %}
+<section class="decision-box">
+  <h3>Review decision</h3>
+  <div class="decision-forms">
+    <form method="post" action="/ui/invoices/{{ invoice.id }}/approve" class="decision-form">
+      <input type="text" name="actor" value="reviewer" placeholder="Your name">
+      <input type="text" name="reason" placeholder="Reason (optional)">
+      <button type="submit" class="approve">Approve</button>
+    </form>
+    <form method="post" action="/ui/invoices/{{ invoice.id }}/reject" class="decision-form">
+      <input type="text" name="actor" value="reviewer" placeholder="Your name">
+      <input type="text" name="reason" placeholder="Reason (optional)">
+      <button type="submit" class="reject">Reject</button>
+    </form>
+  </div>
+</section>
+{% endif %}
+
+<section>
+  <h3>Extraction</h3>
+  {% if extractions %}
+    {% for ex in extractions %}
+    <div class="card {{ 'ok' if ex.ok else 'fail' }}">
+      <p class="card-head">
+        {{ ex.created_at.strftime("%Y-%m-%d %H:%M:%S") }} &middot; {{ ex.model }}
+        &middot; attempt(s): {{ ex.attempts }}
+        {% if not ex.ok %}&middot; <strong>failed: {{ ex.error }}</strong>{% endif %}
+      </p>
+      {% if ex.fields %}
+      <table class="fields">
+        {% for label, value, confidence in ex.fields %}
+        <tr>
+          <th>{{ label }}</th>
+          <td>{{ value if value is not none else "—" }}</td>
+          <td class="confidence">{% if confidence is not none %}{{ (confidence * 100) | round | int }}%{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </table>
+      {% endif %}
+    </div>
+    {% endfor %}
+  {% else %}<p class="empty">No extraction attempt yet.</p>{% endif %}
+</section>
+
+<section>
+  <h3>Vendor + PO match</h3>
+  {% if matches %}
+    {% for m in matches %}
+    <div class="card">
+      <p class="card-head">{{ m.created_at.strftime("%Y-%m-%d %H:%M:%S") }}</p>
+      <table class="fields">
+        <tr><th>Vendor</th><td>{{ m.vendor_name or "not identified" }}</td><td class="confidence">{{ m.vendor_method }}</td></tr>
+        <tr><th>Purchase order</th><td>{{ m.po_number or "not matched" }}</td><td class="confidence">{{ m.po_method }}</td></tr>
+      </table>
+    </div>
+    {% endfor %}
+  {% else %}<p class="empty">No matching attempt yet.</p>{% endif %}
+</section>
+
+<section>
+  <h3>Validation</h3>
+  {% if validations %}
+    {% for val in validations %}
+    <div class="card {{ 'ok' if val.passed else 'fail' }}">
+      <p class="card-head">
+        {{ val.created_at.strftime("%Y-%m-%d %H:%M:%S") }} &middot;
+        overall: <strong>{{ "passed" if val.passed else "failed" }}</strong>
+      </p>
+      <table class="rules">
+        <thead><tr><th>Rule</th><th>Severity</th><th></th><th>Message</th></tr></thead>
+        <tbody>
+        {% for r in val.results %}
+          <tr class="sev-{{ r.severity }}">
+            <td>{{ r.rule }}</td>
+            <td>{{ r.severity }}</td>
+            <td>{{ "✓" if r.passed else "✗" }}</td>
+            <td>{{ r.message }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endfor %}
+  {% else %}<p class="empty">No validation run yet.</p>{% endif %}
+</section>
+
+<section>
+  <h3>Audit trail</h3>
+  {% if audit_log %}
+  <table>
+    <thead><tr><th>When</th><th>From</th><th>To</th><th>Actor</th><th>Reason</th></tr></thead>
+    <tbody>
+    {% for a in audit_log %}
+      <tr>
+        <td>{{ a.created_at.strftime("%Y-%m-%d %H:%M:%S") }}</td>
+        <td>{{ a.from_status }}</td>
+        <td>{{ a.to_status }}</td>
+        <td>{{ a.actor }}</td>
+        <td>{{ a.reason or "" }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="empty">No history yet.</p>{% endif %}
+</section>
+{% endblock %}
