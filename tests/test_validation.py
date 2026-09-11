@@ -111,13 +111,17 @@ def test_line_items_sum_matches_subtotal():
     assert result.passed
 
 
-def test_line_items_sum_mismatch_is_an_error():
+def test_line_items_sum_mismatch_is_a_warning_not_blocking():
+    # Downgraded from "error": real invoices routinely carry small ancillary
+    # charges not captured as line items, so this fires on most genuine
+    # invoices and must not by itself block auto-approval. See the comment
+    # on the rule.
     items = [LineItem(description="a", line_total="50.00")]
     result = rule_line_items_sum_to_subtotal(
         _input(invoice=_inv(line_items=items, subtotal="100.00"))
     )
     assert not result.passed
-    assert result.severity == "error"
+    assert result.severity == "warning"
 
 
 def test_line_items_with_missing_line_total_is_a_warning_not_silent():

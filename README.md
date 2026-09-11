@@ -97,7 +97,11 @@ Milestone-driven. Each milestone is a demoable vertical slice.
       extraction/match/validation/audit view, approve/reject), no JS/build step
 - [x] **M7** Mocked accounting export: HMAC-SHA256-signed JSON artifact,
       auto-triggered on approval, `docs/export-contract.md`
-- [ ] **M8** Full eval harness: discrepancy precision/recall + failure-modes writeup
+- [x] **M8** Discrepancy detection eval (`evals/discrepancy_eval.py`, 7 scenarios
+      x 8 real invoices): **100% precision, 100% recall**. Found and fixed one
+      rule that blocked 100% of real invoices, and surfaced a real open policy
+      question (PO-less spot-market purchases) rather than papering over it --
+      see `docs/failure-modes.md`
 - [ ] **M9** (optional) Email ingestion, 3-way match with goods receipt
 
 ## Out of scope

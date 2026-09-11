@@ -131,7 +131,19 @@ def rule_line_items_sum_to_subtotal(inp: ValidationInput) -> RuleResult:
     passed = diff <= AMOUNT_TOLERANCE
     return RuleResult(
         rule="line_items_sum_to_subtotal",
-        severity="info" if passed else "error",
+        # "warning", not "error": real invoices routinely carry small ancillary
+        # charges (stamp duty, handling fees, packaging deposits) that are not
+        # priced line items in this schema, so line-items-sum vs subtotal will
+        # essentially never match exactly on a genuine invoice. An eval run
+        # against 8 real invoices (evals/discrepancy_eval.py) found this rule
+        # at "error" severity blocked 100% of them -- a rule that fires on
+        # every real invoice provides no signal. Kept as a visible warning
+        # rather than removed: a large gap is still worth a human glancing at,
+        # it just should not by itself block auto-approval. The correct fix is
+        # a structured "other charges" field in the extraction schema so this
+        # can be checked exactly; that is a real schema change, not a
+        # one-line severity tweak.
+        severity="info" if passed else "warning",
         passed=passed,
         message="line items sum to the subtotal"
         if passed
