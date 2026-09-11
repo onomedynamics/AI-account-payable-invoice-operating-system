@@ -95,3 +95,54 @@ def test_list_and_get_invoice(client: TestClient):
 def test_get_unknown_invoice_is_404(client: TestClient):
     resp = client.get("/invoices/00000000-0000-0000-0000-000000000000")
     assert resp.status_code == 404
+
+
+def _force_status(db_session, invoice_id: str, status) -> None:
+    import uuid
+
+    from invoice_ops.models import Invoice
+
+    invoice = db_session.get(Invoice, uuid.UUID(invoice_id))
+    invoice.status = status
+    db_session.commit()
+
+
+def test_approve_endpoint_records_audit_entry(client: TestClient, db_session):
+    from invoice_ops.domain.state import InvoiceStatus
+
+    created = _upload(client, PDF_BYTES, "a.pdf", "application/pdf").json()
+    _force_status(db_session, created["id"], InvoiceStatus.NEEDS_REVIEW)
+
+    resp = client.post(
+        f"/invoices/{created['id']}/approve", json={"actor": "alice", "reason": "ok"}
+    )
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "approved"
+
+    detail = client.get(f"/invoices/{created['id']}").json()
+    assert detail["audit_log"][-1]["actor"] == "alice"
+    assert detail["audit_log"][-1]["to_status"] == "approved"
+    assert detail["audit_log"][-1]["reason"] == "ok"
+
+
+def test_reject_endpoint_uses_default_actor(client: TestClient, db_session):
+    from invoice_ops.domain.state import InvoiceStatus
+
+    created = _upload(client, PDF_BYTES, "b.pdf", "application/pdf").json()
+    _force_status(db_session, created["id"], InvoiceStatus.NEEDS_REVIEW)
+
+    resp = client.post(f"/invoices/{created['id']}/reject", json={})
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "rejected"
+
+
+def test_approve_from_wrong_state_is_409(client: TestClient):
+    created = _upload(client, PDF_BYTES, "c.pdf", "application/pdf").json()
+    # still "received" -- never reached needs_review
+    resp = client.post(f"/invoices/{created['id']}/approve", json={})
+    assert resp.status_code == 409
+
+
+def test_approve_unknown_invoice_is_404(client: TestClient):
+    resp = client.post("/invoices/00000000-0000-0000-0000-000000000000/approve", json={})
+    assert resp.status_code == 404

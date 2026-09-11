@@ -4,7 +4,7 @@ EXTRACTED -> MATCHING -> VALIDATING, or -> FAILED only on a genuine error (no
 invoice, or no successful extraction to match against). An ambiguous or
 missing vendor/PO match is a normal, recorded outcome -- never a failure, and
 never silently resolved. What to *do* about it (auto-approve, route to a
-human) is the approval policy's job (M5), not this stage's.
+human) is the approval policy's job -- see services.approval.
 """
 
 from __future__ import annotations
@@ -33,11 +33,11 @@ def run_matching(session: Session, invoice_id: uuid.UUID) -> InvoiceMatch | None
     extraction = latest_successful_extraction(invoice)
     if extraction is None or extraction.result_json is None:
         invoice.failure_reason = "no successful extraction to match against"
-        advance(invoice, InvoiceStatus.FAILED)
+        advance(session, invoice, InvoiceStatus.FAILED, reason=invoice.failure_reason)
         session.flush()
         return None
 
-    advance(invoice, InvoiceStatus.MATCHING)
+    advance(session, invoice, InvoiceStatus.MATCHING, reason="starting vendor + PO matching")
     session.flush()
 
     extracted = ExtractedInvoice.model_validate(extraction.result_json["invoice"])
@@ -52,8 +52,8 @@ def run_matching(session: Session, invoice_id: uuid.UUID) -> InvoiceMatch | None
 
     # PO numbers are globally unique (the buyer issues them), so search all of
     # them rather than pre-filtering by the matched vendor. A PO found under a
-    # *different* vendor than the extracted supplier is a real anomaly -- worth
-    # a dedicated validation rule in M4, not silently dropped here.
+    # *different* vendor than the extracted supplier is a real anomaly --
+    # caught by domain.validation.rule_po_vendor_mismatch (M4), not dropped here.
     purchase_orders = [
         PoIdentity(po_id=po.id, po_number=po.po_number)
         for po in session.scalars(select(PurchaseOrder))
@@ -73,7 +73,12 @@ def run_matching(session: Session, invoice_id: uuid.UUID) -> InvoiceMatch | None
         po_match_method=po_result.method,
     )
     session.add(match)
-    advance(invoice, InvoiceStatus.VALIDATING)
+    advance(
+        session,
+        invoice,
+        InvoiceStatus.VALIDATING,
+        reason=f"vendor:{vendor_result.method} po:{po_result.method}",
+    )
     session.flush()
     return match
 

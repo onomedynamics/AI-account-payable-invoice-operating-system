@@ -1,14 +1,14 @@
 """SQLAlchemy ORM models.
 
 M1 added ``Invoice``; M2 added ``Extraction``; M3 added ``Vendor``,
-``PurchaseOrder``, ``PoLine``, ``InvoiceMatch``; M4 adds ``Validation``.
-Approvals and the audit log arrive in later milestones.
+``PurchaseOrder``, ``PoLine``, ``InvoiceMatch``; M4 added ``Validation``;
+M5 adds ``AuditLog``.
 """
 
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 from enum import Enum, StrEnum
 from typing import Any
@@ -37,6 +37,15 @@ class InvoiceSource(StrEnum):
     UPLOAD = "upload"
     EMAIL = "email"
     API = "api"
+
+
+def _utcnow() -> datetime:
+    """Python-side (not server_default) timestamp, microsecond resolution on
+    every backend. AuditLog needs this: several rows can be written for one
+    invoice within the same wall-clock second, and SQLite's CURRENT_TIMESTAMP
+    is only second-resolution -- ties would make `order_by=created_at`
+    ambiguous exactly where strict chronological order matters most."""
+    return datetime.now(UTC)
 
 
 def _string_enum(enum_cls: type[Enum]) -> SAEnum:
@@ -103,6 +112,11 @@ class Invoice(Base):
         back_populates="invoice",
         cascade="all, delete-orphan",
         order_by="Validation.created_at",
+    )
+    audit_log: Mapped[list[AuditLog]] = relationship(
+        back_populates="invoice",
+        cascade="all, delete-orphan",
+        order_by="AuditLog.created_at",
     )
 
     def __repr__(self) -> str:
@@ -269,3 +283,34 @@ class Validation(Base):
 
     def __repr__(self) -> str:
         return f"<Validation {self.id} invoice={self.invoice_id} passed={self.passed}>"
+
+
+class AuditLog(Base):
+    """One row per state transition, ever. Never updated, never deleted --
+    written exclusively by services.lifecycle.advance(), which is the only
+    place an invoice's status is allowed to change."""
+
+    __tablename__ = "audit_log"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    invoice_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("invoices.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, nullable=False
+    )
+
+    from_status: Mapped[str] = mapped_column(String(32), nullable=False)
+    to_status: Mapped[str] = mapped_column(String(32), nullable=False)
+    # "system" for every automatic transition today. A human decision (the
+    # /approve, /reject endpoints) records the reviewer here once there is
+    # any notion of who that is -- no auth yet, so it defaults to "reviewer".
+    actor: Mapped[str] = mapped_column(String(64), nullable=False, default="system")
+    reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    invoice: Mapped[Invoice] = relationship(back_populates="audit_log")
+
+    def __repr__(self) -> str:
+        return (
+            f"<AuditLog {self.id} invoice={self.invoice_id} {self.from_status}->{self.to_status}>"
+        )

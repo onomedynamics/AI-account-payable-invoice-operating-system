@@ -15,6 +15,7 @@ from invoice_ops.config import get_settings
 from invoice_ops.db import get_db
 from invoice_ops.domain.state import InvoiceStatus
 from invoice_ops.models import Invoice, InvoiceMatch, InvoiceSource
+from invoice_ops.services.approval import record_human_decision
 from invoice_ops.services.ingestion import ingest_upload
 
 router = APIRouter(prefix="/invoices", tags=["invoices"])
@@ -81,10 +82,27 @@ class ValidationOut(BaseModel):
     results: list[dict[str, Any]]
 
 
+class AuditLogOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    created_at: datetime
+    from_status: str
+    to_status: str
+    actor: str
+    reason: str | None
+
+
 class InvoiceDetailOut(InvoiceOut):
     extractions: list[ExtractionOut] = []
     matches: list[InvoiceMatchOut] = []
     validations: list[ValidationOut] = []
+    audit_log: list[AuditLogOut] = []
+
+
+class ReviewDecisionIn(BaseModel):
+    actor: str = "reviewer"
+    reason: str | None = None
 
 
 @router.post("", response_model=InvoiceOut)
@@ -149,3 +167,37 @@ def get_invoice(invoice_id: uuid.UUID, db: Session = Depends(get_db)) -> Invoice
     # automatic attribute lookup can't reach through a join by itself.
     detail.matches = [InvoiceMatchOut.from_model(m) for m in invoice.matches]
     return detail
+
+
+@router.post("/{invoice_id}/approve", response_model=InvoiceOut)
+def approve_invoice_endpoint(
+    invoice_id: uuid.UUID,
+    body: ReviewDecisionIn,
+    db: Session = Depends(get_db),
+) -> InvoiceOut:
+    """Record a human approval. Only legal from NEEDS_REVIEW."""
+    return _record_decision(invoice_id, body, db, approve=True)
+
+
+@router.post("/{invoice_id}/reject", response_model=InvoiceOut)
+def reject_invoice_endpoint(
+    invoice_id: uuid.UUID,
+    body: ReviewDecisionIn,
+    db: Session = Depends(get_db),
+) -> InvoiceOut:
+    """Record a human rejection. Only legal from NEEDS_REVIEW."""
+    return _record_decision(invoice_id, body, db, approve=False)
+
+
+def _record_decision(
+    invoice_id: uuid.UUID, body: ReviewDecisionIn, db: Session, *, approve: bool
+) -> InvoiceOut:
+    try:
+        invoice = record_human_decision(
+            db, invoice_id, approve=approve, actor=body.actor, reason=body.reason
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    return InvoiceOut.model_validate(invoice)

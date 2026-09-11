@@ -2,7 +2,7 @@
 
 VALIDATING -> VALIDATED, or -> FAILED only on a genuine error (no invoice, or
 no successful extraction). This stage never decides auto-approve vs
-needs-review -- see domain/validation.py's module docstring and M5.
+needs-review -- see services.approval.
 """
 
 from __future__ import annotations
@@ -80,7 +80,7 @@ def run_validation(session: Session, invoice_id: uuid.UUID) -> Validation | None
     extraction = latest_successful_extraction(invoice)
     if extraction is None or extraction.result_json is None:
         invoice.failure_reason = "no successful extraction to validate"
-        advance(invoice, InvoiceStatus.FAILED)
+        advance(session, invoice, InvoiceStatus.FAILED, reason=invoice.failure_reason)
         session.flush()
         return None
 
@@ -109,12 +109,18 @@ def run_validation(session: Session, invoice_id: uuid.UUID) -> Validation | None
     )
     results = run_rules(validation_input)
 
+    passed = not has_blocking_failure(results)
     validation = Validation(
         invoice_id=invoice.id,
         results=[asdict(r) for r in results],
-        passed=not has_blocking_failure(results),
+        passed=passed,
     )
     session.add(validation)
-    advance(invoice, InvoiceStatus.VALIDATED)
+    advance(
+        session,
+        invoice,
+        InvoiceStatus.VALIDATED,
+        reason=f"{len(results)} rules evaluated, passed={passed}",
+    )
     session.flush()
     return validation

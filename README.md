@@ -87,8 +87,9 @@ Milestone-driven. Each milestone is a demoable vertical slice.
 - [x] **M3** Deterministic vendor + PO matching (2-way; 3-way with goods receipt is M9)
 - [x] **M4** Validation engine: 7 deterministic rules (arithmetic, PO tolerance,
       PO currency/vendor cross-check, duplicate detection), per-rule unit tests
-- [ ] **M5** Approval policy + invoice lifecycle state machine + audit log
-- [ ] **M6** Human review UI
+- [x] **M5** Approval policy (validation + confidence + vendor/PO identification
+      -> auto-approve or needs-review) + full state-machine enforcement + append-only audit log
+- [ ] **M6** Human review UI (approve/reject API already exists; this is the UI on top)
 - [ ] **M7** Mocked accounting export (signed artifact + contract doc)
 - [ ] **M8** Full eval harness: discrepancy precision/recall + failure-modes writeup
 - [ ] **M9** (optional) Email ingestion, 3-way match with goods receipt

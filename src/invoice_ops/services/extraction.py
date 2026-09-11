@@ -123,7 +123,7 @@ def run_extraction(
         # Already processed (or being processed). Do not create a second attempt.
         return None
 
-    advance(invoice, InvoiceStatus.EXTRACTING)
+    advance(session, invoice, InvoiceStatus.EXTRACTING, reason="starting text + LLM extraction")
     session.flush()
 
     document = extract_text(get_storage().get_object(invoice.storage_key), invoice.content_type)
@@ -177,7 +177,13 @@ def run_extraction(
     )
     session.add(extraction)
     invoice.failure_reason = None
-    advance(invoice, InvoiceStatus.EXTRACTED)
+    used_model = outcome.model or settings.llm_model
+    advance(
+        session,
+        invoice,
+        InvoiceStatus.EXTRACTED,
+        reason=f"extracted in {outcome.attempts} attempt(s) via {used_model}",
+    )
     session.flush()
     return extraction
 
@@ -212,6 +218,6 @@ def _fail(
     )
     session.add(extraction)
     invoice.failure_reason = error
-    advance(invoice, InvoiceStatus.FAILED)
+    advance(session, invoice, InvoiceStatus.FAILED, reason=error)
     session.flush()
     return extraction

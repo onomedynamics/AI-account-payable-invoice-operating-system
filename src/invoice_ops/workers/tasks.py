@@ -83,3 +83,23 @@ def validate_invoice(invoice_id: str) -> None:
         logger.info("validate_invoice: %s not in VALIDATING, skipped", invoice_id)
     else:
         logger.info("validate_invoice: %s passed=%s", invoice_id, outcome)
+        # Validation always produces a recorded outcome (pass or fail is still
+        # a result), so always chain into the approval decision.
+        approve_invoice.delay(invoice_id)
+
+
+@celery_app.task(name="invoice_ops.approve_invoice")
+def approve_invoice(invoice_id: str) -> None:
+    """Decide auto-approve vs needs-review. See services.approval."""
+    from invoice_ops.db import session_scope
+    from invoice_ops.services.approval import run_approval
+
+    with session_scope() as session:
+        decision = run_approval(session, uuid.UUID(invoice_id))
+        summary = None if decision is None else (decision.outcome.value, decision.reasons)
+
+    if summary is None:
+        logger.info("approve_invoice: %s not in VALIDATED, skipped", invoice_id)
+    else:
+        outcome, reasons = summary
+        logger.info("approve_invoice: %s -> %s (%s)", invoice_id, outcome, "; ".join(reasons))
