@@ -88,6 +88,7 @@ def test_list_and_get_invoice(client: TestClient):
     body = detail.json()
     assert body["id"] == created["id"]
     assert body["status"] == "received"
+    assert body["matches"] == []
     assert body["extractions"] == []  # stub_enqueue kept extraction from running
 
 

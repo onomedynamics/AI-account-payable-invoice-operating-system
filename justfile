@@ -41,6 +41,10 @@ eval:
 migrate:
     uv run alembic upgrade head
 
+# Insert demo vendors/POs so matching has something to match against
+seed:
+    uv run python scripts/seed_demo.py
+
 # Create a new migration from model changes:  just revision "add invoices table"
 revision message:
     uv run alembic revision --autogenerate -m "{{message}}"

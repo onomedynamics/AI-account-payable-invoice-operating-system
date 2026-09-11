@@ -1,17 +1,31 @@
 """SQLAlchemy ORM models.
 
-M1 added ``Invoice``; M2 adds ``Extraction``. Vendors, purchase orders,
-validation results, approvals, and the audit log arrive in later milestones.
+M1 added ``Invoice``; M2 added ``Extraction``; M3 adds ``Vendor``,
+``PurchaseOrder``, ``PoLine``, ``InvoiceMatch``. Validation results, approvals,
+and the audit log arrive in later milestones.
 """
 
 from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from decimal import Decimal
 from enum import Enum, StrEnum
 from typing import Any
 
-from sqlalchemy import JSON, BigInteger, Boolean, DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import (
+    JSON,
+    BigInteger,
+    Boolean,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    Numeric,
+    String,
+    Text,
+    func,
+)
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -80,6 +94,11 @@ class Invoice(Base):
         cascade="all, delete-orphan",
         order_by="Extraction.created_at",
     )
+    matches: Mapped[list[InvoiceMatch]] = relationship(
+        back_populates="invoice",
+        cascade="all, delete-orphan",
+        order_by="InvoiceMatch.created_at",
+    )
 
     def __repr__(self) -> str:
         return f"<Invoice {self.id} {self.status.value}>"
@@ -115,3 +134,106 @@ class Extraction(Base):
 
     def __repr__(self) -> str:
         return f"<Extraction {self.id} invoice={self.invoice_id} ok={self.ok}>"
+
+
+class Vendor(Base):
+    __tablename__ = "vendors"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    legal_name: Mapped[str] = mapped_column(String(500), nullable=False)
+    tax_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    aliases: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    country: Mapped[str | None] = mapped_column(String(2), nullable=True)
+    active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
+    purchase_orders: Mapped[list[PurchaseOrder]] = relationship(back_populates="vendor")
+
+    def __repr__(self) -> str:
+        return f"<Vendor {self.id} {self.legal_name!r}>"
+
+
+class PurchaseOrder(Base):
+    __tablename__ = "purchase_orders"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    po_number: Mapped[str] = mapped_column(String(128), nullable=False, unique=True, index=True)
+    vendor_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("vendors.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    currency: Mapped[str] = mapped_column(String(3), nullable=False)
+    subtotal: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    tax_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    total: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    # Simple lifecycle for now: "open" | "closed" | "cancelled". A real enum
+    # (with its own transition rules) can replace this if PO status logic grows.
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="open")
+
+    vendor: Mapped[Vendor] = relationship(back_populates="purchase_orders")
+    lines: Mapped[list[PoLine]] = relationship(
+        back_populates="purchase_order", cascade="all, delete-orphan"
+    )
+
+    def __repr__(self) -> str:
+        return f"<PurchaseOrder {self.id} {self.po_number!r}>"
+
+
+class PoLine(Base):
+    __tablename__ = "po_lines"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    po_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("purchase_orders.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    description: Mapped[str] = mapped_column(String(500), nullable=False)
+    quantity: Mapped[Decimal] = mapped_column(Numeric(12, 3), nullable=False)
+    unit_price: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    line_total: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+
+    purchase_order: Mapped[PurchaseOrder] = relationship(back_populates="lines")
+
+
+class InvoiceMatch(Base):
+    """One matching attempt for one invoice. Append-only, like Extraction --
+    ambiguous or missing matches are recorded, never silently resolved."""
+
+    __tablename__ = "invoice_matches"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    invoice_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("invoices.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    vendor_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("vendors.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    vendor_match_method: Mapped[str] = mapped_column(String(32), nullable=False)
+    vendor_confidence: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    vendor_candidates: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSON, nullable=False, default=list
+    )
+
+    po_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("purchase_orders.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    po_match_method: Mapped[str] = mapped_column(String(32), nullable=False)
+
+    invoice: Mapped[Invoice] = relationship(back_populates="matches")
+    vendor: Mapped[Vendor | None] = relationship()
+    purchase_order: Mapped[PurchaseOrder | None] = relationship()
+
+    def __repr__(self) -> str:
+        return (
+            f"<InvoiceMatch {self.id} invoice={self.invoice_id} "
+            f"vendor={self.vendor_id} po={self.po_id}>"
+        )

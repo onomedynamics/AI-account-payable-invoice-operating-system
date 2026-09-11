@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from invoice_ops.config import get_settings
 from invoice_ops.db import get_db
 from invoice_ops.domain.state import InvoiceStatus
-from invoice_ops.models import Invoice, InvoiceSource
+from invoice_ops.models import Invoice, InvoiceMatch, InvoiceSource
 from invoice_ops.services.ingestion import ingest_upload
 
 router = APIRouter(prefix="/invoices", tags=["invoices"])
@@ -50,8 +50,31 @@ class ExtractionOut(BaseModel):
     error: str | None
 
 
+class InvoiceMatchOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    created_at: datetime
+    vendor_id: uuid.UUID | None
+    vendor_name: str | None = None
+    vendor_match_method: str
+    vendor_confidence: float
+    vendor_candidates: list[dict[str, Any]]
+    po_id: uuid.UUID | None
+    po_number: str | None = None
+    po_match_method: str
+
+    @classmethod
+    def from_model(cls, match: InvoiceMatch) -> InvoiceMatchOut:
+        out = cls.model_validate(match)
+        out.vendor_name = match.vendor.legal_name if match.vendor else None
+        out.po_number = match.purchase_order.po_number if match.purchase_order else None
+        return out
+
+
 class InvoiceDetailOut(InvoiceOut):
     extractions: list[ExtractionOut] = []
+    matches: list[InvoiceMatchOut] = []
 
 
 @router.post("", response_model=InvoiceOut)
@@ -106,9 +129,13 @@ def list_invoices(
 
 
 @router.get("/{invoice_id}", response_model=InvoiceDetailOut)
-def get_invoice(invoice_id: uuid.UUID, db: Session = Depends(get_db)) -> Invoice:
-    """One invoice with every extraction attempt made for it."""
+def get_invoice(invoice_id: uuid.UUID, db: Session = Depends(get_db)) -> InvoiceDetailOut:
+    """One invoice with every extraction attempt and every matching attempt."""
     invoice = db.get(Invoice, invoice_id)
     if invoice is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="invoice not found")
-    return invoice
+    detail = InvoiceDetailOut.model_validate(invoice)
+    # Resolve vendor_name / po_number from the relationships -- model_validate's
+    # automatic attribute lookup can't reach through a join by itself.
+    detail.matches = [InvoiceMatchOut.from_model(m) for m in invoice.matches]
+    return detail

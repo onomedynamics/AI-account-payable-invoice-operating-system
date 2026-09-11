@@ -17,9 +17,10 @@ from sqlalchemy.orm import Session
 
 from invoice_ops.config import get_settings
 from invoice_ops.domain.extraction import ExtractionResult, result_json_schema
-from invoice_ops.domain.state import InvoiceStatus, can_transition
+from invoice_ops.domain.state import InvoiceStatus
 from invoice_ops.models import Extraction, Invoice
 from invoice_ops.services.documents import extract_text
+from invoice_ops.services.lifecycle import advance
 from invoice_ops.services.llm import LLMError, OpenRouterClient, StructuredLLM
 from invoice_ops.storage import get_storage
 
@@ -107,12 +108,6 @@ def extract_with_retry(llm: StructuredLLM, document_text: str, *, max_retries: i
     raise ExtractionFailed("; ".join(errors), attempt, last_raw)
 
 
-def _advance(invoice: Invoice, target: InvoiceStatus) -> None:
-    if not can_transition(invoice.status, target):
-        raise RuntimeError(f"illegal transition {invoice.status} -> {target}")
-    invoice.status = target
-
-
 def run_extraction(
     session: Session,
     invoice_id: uuid.UUID,
@@ -128,7 +123,7 @@ def run_extraction(
         # Already processed (or being processed). Do not create a second attempt.
         return None
 
-    _advance(invoice, InvoiceStatus.EXTRACTING)
+    advance(invoice, InvoiceStatus.EXTRACTING)
     session.flush()
 
     document = extract_text(get_storage().get_object(invoice.storage_key), invoice.content_type)
@@ -182,9 +177,18 @@ def run_extraction(
     )
     session.add(extraction)
     invoice.failure_reason = None
-    _advance(invoice, InvoiceStatus.EXTRACTED)
+    advance(invoice, InvoiceStatus.EXTRACTED)
     session.flush()
     return extraction
+
+
+def latest_successful_extraction(invoice: Invoice) -> Extraction | None:
+    """The most recent ok=True attempt, if any. Retries mean several attempts
+    can exist for one invoice; only the successful one matters downstream."""
+    for extraction in reversed(invoice.extractions):
+        if extraction.ok:
+            return extraction
+    return None
 
 
 def _fail(
@@ -208,6 +212,6 @@ def _fail(
     )
     session.add(extraction)
     invoice.failure_reason = error
-    _advance(invoice, InvoiceStatus.FAILED)
+    advance(invoice, InvoiceStatus.FAILED)
     session.flush()
     return extraction

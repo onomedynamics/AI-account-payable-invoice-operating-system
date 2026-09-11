@@ -84,7 +84,7 @@ Milestone-driven. Each milestone is a demoable vertical slice.
   - [x] **M2a** pdfplumber text + `ExtractedInvoice` schema + `Extraction` model + OpenRouter client + validate-and-retry, wired into the task
   - [ ] **M2b** eval harness against labelled real invoices + one live smoke test
   - [ ] later: OCR fallback for scanned PDFs / image uploads
-- [ ] **M3** Deterministic vendor + PO matching
+- [x] **M3** Deterministic vendor + PO matching (2-way; 3-way with goods receipt is M9)
 - [ ] **M4** Validation engine (per-rule unit tests)
 - [ ] **M5** Approval policy + invoice lifecycle state machine + audit log
 - [ ] **M6** Human review UI
