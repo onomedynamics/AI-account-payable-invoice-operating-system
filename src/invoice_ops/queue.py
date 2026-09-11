@@ -3,6 +3,13 @@
 In dev, ``celery_task_always_eager`` makes ``.delay()`` run the task inline in
 the caller, so no broker process is required. In CI / prod the same tasks run
 through Redis.
+
+Settings are read once here, at import time, into ``celery_app.conf`` -- this
+module does not re-read them later. That is fine for a real process (env vars
+don't change after startup) but means tests cannot flip eager mode via
+``monkeypatch.setenv`` + ``get_settings.cache_clear()`` alone; they must
+reach into ``celery_app.conf.task_always_eager`` directly (see
+``tests/conftest.py::_isolated_env``).
 """
 
 from __future__ import annotations

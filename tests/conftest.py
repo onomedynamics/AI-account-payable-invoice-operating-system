@@ -18,13 +18,30 @@ from invoice_ops.db import Base
 
 @pytest.fixture(autouse=True)
 def _isolated_env(tmp_path, monkeypatch) -> Iterator[None]:
-    """Every test gets its own storage dir and eager task queue."""
+    """Every test gets its own storage dir and eager task queue.
+
+    Celery reads ``celery_task_always_eager`` once, at import time, into
+    ``celery_app.conf`` (see queue.py) -- it never re-reads Settings. Setting
+    the env var here only affects *future* get_settings() calls, so it cannot
+    by itself change already-running Celery's behaviour. In CI the env var is
+    "false" (a real broker) *before pytest starts*, so the first import bakes
+    in eager=False permanently unless we reach into the live config directly.
+    """
     monkeypatch.setenv("STORAGE_BACKEND", "local")
     monkeypatch.setenv("STORAGE_LOCAL_DIR", str(tmp_path / "storage"))
     monkeypatch.setenv("CELERY_TASK_ALWAYS_EAGER", "true")
     get_settings.cache_clear()
-    yield
-    get_settings.cache_clear()
+
+    from invoice_ops.queue import celery_app
+
+    original_eager = celery_app.conf.task_always_eager
+    celery_app.conf.task_always_eager = True
+    celery_app.conf.task_eager_propagates = True
+    try:
+        yield
+    finally:
+        celery_app.conf.task_always_eager = original_eager
+        get_settings.cache_clear()
 
 
 @pytest.fixture
