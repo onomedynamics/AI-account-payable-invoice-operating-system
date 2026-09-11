@@ -1,8 +1,8 @@
 """SQLAlchemy ORM models.
 
-M1 added ``Invoice``; M2 added ``Extraction``; M3 adds ``Vendor``,
-``PurchaseOrder``, ``PoLine``, ``InvoiceMatch``. Validation results, approvals,
-and the audit log arrive in later milestones.
+M1 added ``Invoice``; M2 added ``Extraction``; M3 added ``Vendor``,
+``PurchaseOrder``, ``PoLine``, ``InvoiceMatch``; M4 adds ``Validation``.
+Approvals and the audit log arrive in later milestones.
 """
 
 from __future__ import annotations
@@ -83,8 +83,8 @@ class Invoice(Base):
     storage_key: Mapped[str] = mapped_column(String(1024), nullable=False)
 
     # Exact-bytes idempotency key. The *business* duplicate check (same vendor +
-    # invoice number + date + amount, possibly a different scan) is separate and
-    # arrives in M4.
+    # invoice number, possibly a different scan) is separate: see
+    # domain.validation.rule_duplicate_invoice_number (M4).
     content_sha256: Mapped[str] = mapped_column(String(64), nullable=False, unique=True, index=True)
 
     failure_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -98,6 +98,11 @@ class Invoice(Base):
         back_populates="invoice",
         cascade="all, delete-orphan",
         order_by="InvoiceMatch.created_at",
+    )
+    validations: Mapped[list[Validation]] = relationship(
+        back_populates="invoice",
+        cascade="all, delete-orphan",
+        order_by="Validation.created_at",
     )
 
     def __repr__(self) -> str:
@@ -237,3 +242,30 @@ class InvoiceMatch(Base):
             f"<InvoiceMatch {self.id} invoice={self.invoice_id} "
             f"vendor={self.vendor_id} po={self.po_id}>"
         )
+
+
+class Validation(Base):
+    """One validation pass over one invoice: the full set of rule results at
+    that moment. Append-only, like Extraction and InvoiceMatch."""
+
+    __tablename__ = "validations"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    invoice_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("invoices.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    # Each entry: {"rule": str, "severity": "info"|"warning"|"error",
+    #              "passed": bool, "message": str, "detail": dict}
+    results: Mapped[list[dict[str, Any]]] = mapped_column(JSON, nullable=False, default=list)
+    # No rule at severity="error" failed. Does not by itself mean auto-approve
+    # -- that gate also looks at extraction confidence (M5's job).
+    passed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+    invoice: Mapped[Invoice] = relationship(back_populates="validations")
+
+    def __repr__(self) -> str:
+        return f"<Validation {self.id} invoice={self.invoice_id} passed={self.passed}>"

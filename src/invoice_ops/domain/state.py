@@ -16,6 +16,7 @@ class InvoiceStatus(StrEnum):
     EXTRACTED = "extracted"
     MATCHING = "matching"
     VALIDATING = "validating"
+    VALIDATED = "validated"
     NEEDS_REVIEW = "needs_review"
     AUTO_APPROVED = "auto_approved"
     APPROVED = "approved"
@@ -33,13 +34,11 @@ _TRANSITIONS: dict[InvoiceStatus, frozenset[InvoiceStatus]] = {
     InvoiceStatus.EXTRACTING: frozenset({InvoiceStatus.EXTRACTED, InvoiceStatus.FAILED}),
     InvoiceStatus.EXTRACTED: frozenset({InvoiceStatus.MATCHING, InvoiceStatus.FAILED}),
     InvoiceStatus.MATCHING: frozenset({InvoiceStatus.VALIDATING, InvoiceStatus.FAILED}),
-    InvoiceStatus.VALIDATING: frozenset(
-        {
-            InvoiceStatus.AUTO_APPROVED,
-            InvoiceStatus.NEEDS_REVIEW,
-            InvoiceStatus.FAILED,
-        }
-    ),
+    InvoiceStatus.VALIDATING: frozenset({InvoiceStatus.VALIDATED, InvoiceStatus.FAILED}),
+    # The decision (auto-approve vs needs-review) is the approval policy's job
+    # (M5), not the validation engine's (M4) -- kept as separate states so
+    # "rules ran" and "someone decided what to do about it" can't be conflated.
+    InvoiceStatus.VALIDATED: frozenset({InvoiceStatus.AUTO_APPROVED, InvoiceStatus.NEEDS_REVIEW}),
     InvoiceStatus.NEEDS_REVIEW: frozenset({InvoiceStatus.APPROVED, InvoiceStatus.REJECTED}),
     InvoiceStatus.AUTO_APPROVED: frozenset({InvoiceStatus.EXPORTING}),
     InvoiceStatus.APPROVED: frozenset({InvoiceStatus.EXPORTING}),

@@ -72,9 +72,19 @@ class InvoiceMatchOut(BaseModel):
         return out
 
 
+class ValidationOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    created_at: datetime
+    passed: bool
+    results: list[dict[str, Any]]
+
+
 class InvoiceDetailOut(InvoiceOut):
     extractions: list[ExtractionOut] = []
     matches: list[InvoiceMatchOut] = []
+    validations: list[ValidationOut] = []
 
 
 @router.post("", response_model=InvoiceOut)

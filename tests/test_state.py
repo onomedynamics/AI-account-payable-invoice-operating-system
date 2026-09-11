@@ -19,6 +19,7 @@ def test_happy_path_chain_is_legal():
         InvoiceStatus.EXTRACTED,
         InvoiceStatus.MATCHING,
         InvoiceStatus.VALIDATING,
+        InvoiceStatus.VALIDATED,
         InvoiceStatus.NEEDS_REVIEW,
         InvoiceStatus.APPROVED,
         InvoiceStatus.EXPORTING,
@@ -29,7 +30,7 @@ def test_happy_path_chain_is_legal():
 
 
 def test_auto_approved_branch_is_legal():
-    assert can_transition(InvoiceStatus.VALIDATING, InvoiceStatus.AUTO_APPROVED)
+    assert can_transition(InvoiceStatus.VALIDATED, InvoiceStatus.AUTO_APPROVED)
     assert can_transition(InvoiceStatus.AUTO_APPROVED, InvoiceStatus.EXPORTING)
 
 
@@ -41,7 +42,10 @@ def test_auto_approved_branch_is_legal():
         (InvoiceStatus.EXPORTED, InvoiceStatus.RECEIVED),
         (InvoiceStatus.REJECTED, InvoiceStatus.APPROVED),
         # must pass through needs_review or auto_approved, not straight to approved
-        (InvoiceStatus.VALIDATING, InvoiceStatus.APPROVED),
+        (InvoiceStatus.VALIDATED, InvoiceStatus.APPROVED),
+        # running the rules is not the same as having decided anything yet
+        (InvoiceStatus.VALIDATING, InvoiceStatus.AUTO_APPROVED),
+        (InvoiceStatus.VALIDATING, InvoiceStatus.NEEDS_REVIEW),
     ],
 )
 def test_illegal_transitions_are_rejected(current, target):

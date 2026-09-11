@@ -76,3 +76,10 @@ def run_matching(session: Session, invoice_id: uuid.UUID) -> InvoiceMatch | None
     advance(invoice, InvoiceStatus.VALIDATING)
     session.flush()
     return match
+
+
+def latest_match(invoice: Invoice) -> InvoiceMatch | None:
+    """The most recent matching attempt, if any. Unlike Extraction, InvoiceMatch
+    has no ok/not-ok split -- an unresolved vendor/PO is still a valid attempt,
+    so "most recent" is simply the last one."""
+    return invoice.matches[-1] if invoice.matches else None

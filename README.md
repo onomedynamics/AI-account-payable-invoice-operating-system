@@ -85,7 +85,8 @@ Milestone-driven. Each milestone is a demoable vertical slice.
   - [ ] **M2b** eval harness against labelled real invoices + one live smoke test
   - [ ] later: OCR fallback for scanned PDFs / image uploads
 - [x] **M3** Deterministic vendor + PO matching (2-way; 3-way with goods receipt is M9)
-- [ ] **M4** Validation engine (per-rule unit tests)
+- [x] **M4** Validation engine: 7 deterministic rules (arithmetic, PO tolerance,
+      PO currency/vendor cross-check, duplicate detection), per-rule unit tests
 - [ ] **M5** Approval policy + invoice lifecycle state machine + audit log
 - [ ] **M6** Human review UI
 - [ ] **M7** Mocked accounting export (signed artifact + contract doc)

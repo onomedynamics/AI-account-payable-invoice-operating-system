@@ -63,3 +63,23 @@ def match_invoice(invoice_id: str) -> None:
             po_id,
             po_method,
         )
+        # Matching always produces a recorded outcome (even "no vendor found"),
+        # so always chain into validation -- unlike extraction, there is no
+        # "matching succeeded" gate here.
+        validate_invoice.delay(invoice_id)
+
+
+@celery_app.task(name="invoice_ops.validate_invoice")
+def validate_invoice(invoice_id: str) -> None:
+    """Run the deterministic rule set. See services.validation."""
+    from invoice_ops.db import session_scope
+    from invoice_ops.services.validation import run_validation
+
+    with session_scope() as session:
+        validation = run_validation(session, uuid.UUID(invoice_id))
+        outcome = None if validation is None else validation.passed
+
+    if outcome is None:
+        logger.info("validate_invoice: %s not in VALIDATING, skipped", invoice_id)
+    else:
+        logger.info("validate_invoice: %s passed=%s", invoice_id, outcome)
