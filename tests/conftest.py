@@ -12,13 +12,14 @@ from sqlalchemy.pool import StaticPool
 from invoice_ops import db as db_module
 from invoice_ops import models  # noqa: F401 - register tables on Base.metadata
 from invoice_ops.api.main import create_app
-from invoice_ops.config import get_settings
+from invoice_ops.config import Settings, get_settings
 from invoice_ops.db import Base
 
 
 @pytest.fixture(autouse=True)
 def _isolated_env(tmp_path, monkeypatch) -> Iterator[None]:
-    """Every test gets its own storage dir and eager task queue.
+    """Every test gets its own storage dir and eager task queue, and never
+    sees a developer's real .env file.
 
     Celery reads ``celery_task_always_eager`` once, at import time, into
     ``celery_app.conf`` (see queue.py) -- it never re-reads Settings. Setting
@@ -26,7 +27,16 @@ def _isolated_env(tmp_path, monkeypatch) -> Iterator[None]:
     by itself change already-running Celery's behaviour. In CI the env var is
     "false" (a real broker) *before pytest starts*, so the first import bakes
     in eager=False permanently unless we reach into the live config directly.
+
+    Disabling dotenv loading is the other half of test isolation: pydantic-
+    settings ranks a .env file above code defaults, so a real .env (a real
+    OPENROUTER_API_KEY, a custom EXPORT_SIGNING_SECRET, ...) would otherwise
+    silently change test behaviour depending on what happens to be on the
+    machine running the suite. Only env vars set explicitly in a test, or the
+    code defaults, may ever apply here.
     """
+    monkeypatch.setitem(Settings.model_config, "env_file", None)
+
     monkeypatch.setenv("STORAGE_BACKEND", "local")
     monkeypatch.setenv("STORAGE_LOCAL_DIR", str(tmp_path / "storage"))
     monkeypatch.setenv("CELERY_TASK_ALWAYS_EAGER", "true")
