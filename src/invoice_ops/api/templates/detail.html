@@ -100,6 +100,21 @@
 </section>
 
 <section>
+  <h3>Accounting export</h3>
+  {% if exports %}
+    {% for e in exports %}
+    <div class="card ok">
+      <p class="card-head">{{ e.created_at.strftime("%Y-%m-%d %H:%M:%S") }} &middot; contract v{{ e.contract_version }}</p>
+      <table class="fields">
+        <tr><th>Artifact</th><td colspan="2"><code>{{ e.storage_key }}</code></td></tr>
+        <tr><th>Signature</th><td colspan="2"><code>{{ e.signature[:24] }}&hellip;</code></td></tr>
+      </table>
+    </div>
+    {% endfor %}
+  {% else %}<p class="empty">Not exported yet.</p>{% endif %}
+</section>
+
+<section>
   <h3>Audit trail</h3>
   {% if audit_log %}
   <table>

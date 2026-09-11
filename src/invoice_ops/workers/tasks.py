@@ -6,6 +6,7 @@ import uuid
 
 from celery.utils.log import get_task_logger
 
+from invoice_ops.domain.state import InvoiceStatus
 from invoice_ops.queue import celery_app
 
 logger = get_task_logger(__name__)
@@ -103,3 +104,23 @@ def approve_invoice(invoice_id: str) -> None:
     else:
         outcome, reasons = summary
         logger.info("approve_invoice: %s -> %s (%s)", invoice_id, outcome, "; ".join(reasons))
+        # A human still has to sign off on NEEDS_REVIEW invoices; only an
+        # auto-approval chains straight into export.
+        if outcome == InvoiceStatus.AUTO_APPROVED.value:
+            export_invoice.delay(invoice_id)
+
+
+@celery_app.task(name="invoice_ops.export_invoice")
+def export_invoice(invoice_id: str) -> None:
+    """Build + sign the accounting-export artifact. See services.export."""
+    from invoice_ops.db import session_scope
+    from invoice_ops.services.export import run_export
+
+    with session_scope() as session:
+        export = run_export(session, uuid.UUID(invoice_id))
+        storage_key = None if export is None else export.storage_key
+
+    if storage_key is None:
+        logger.info("export_invoice: %s not exportable, skipped", invoice_id)
+    else:
+        logger.info("export_invoice: %s -> %s", invoice_id, storage_key)

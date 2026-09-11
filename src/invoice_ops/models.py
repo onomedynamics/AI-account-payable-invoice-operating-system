@@ -2,7 +2,8 @@
 
 M1 added ``Invoice``; M2 added ``Extraction``; M3 added ``Vendor``,
 ``PurchaseOrder``, ``PoLine``, ``InvoiceMatch``; M4 added ``Validation``;
-M5 adds ``AuditLog``.
+M5 added ``AuditLog``; M6 added no tables (a UI over existing data); M7
+adds ``Export``.
 """
 
 from __future__ import annotations
@@ -117,6 +118,11 @@ class Invoice(Base):
         back_populates="invoice",
         cascade="all, delete-orphan",
         order_by="AuditLog.created_at",
+    )
+    exports: Mapped[list[Export]] = relationship(
+        back_populates="invoice",
+        cascade="all, delete-orphan",
+        order_by="Export.created_at",
     )
 
     def __repr__(self) -> str:
@@ -314,3 +320,27 @@ class AuditLog(Base):
         return (
             f"<AuditLog {self.id} invoice={self.invoice_id} {self.from_status}->{self.to_status}>"
         )
+
+
+class Export(Base):
+    """One accounting-export artifact for one invoice. Append-only: if an
+    invoice is ever re-exported, that is a new row, not an overwrite."""
+
+    __tablename__ = "exports"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    invoice_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("invoices.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    storage_key: Mapped[str] = mapped_column(String(1024), nullable=False)
+    contract_version: Mapped[str] = mapped_column(String(16), nullable=False)
+    signature: Mapped[str] = mapped_column(String(128), nullable=False)
+
+    invoice: Mapped[Invoice] = relationship(back_populates="exports")
+
+    def __repr__(self) -> str:
+        return f"<Export {self.id} invoice={self.invoice_id}>"

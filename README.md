@@ -93,7 +93,8 @@ Milestone-driven. Each milestone is a demoable vertical slice.
       -> auto-approve or needs-review) + full state-machine enforcement + append-only audit log
 - [x] **M6** Human review UI: server-rendered queue + detail pages (upload,
       extraction/match/validation/audit view, approve/reject), no JS/build step
-- [ ] **M7** Mocked accounting export (signed artifact + contract doc)
+- [x] **M7** Mocked accounting export: HMAC-SHA256-signed JSON artifact,
+      auto-triggered on approval, `docs/export-contract.md`
 - [ ] **M8** Full eval harness: discrepancy precision/recall + failure-modes writeup
 - [ ] **M9** (optional) Email ingestion, 3-way match with goods receipt
 

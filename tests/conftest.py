@@ -92,6 +92,17 @@ def stub_enqueue(monkeypatch) -> MagicMock:
     return stub
 
 
+@pytest.fixture(autouse=True)
+def stub_export_enqueue(monkeypatch) -> MagicMock:
+    """Stop the AUTO_APPROVED task chain and the human-approve path from
+    running the real export pipeline inline (eager mode). Tests that want the
+    export step call `run_export` directly, or replace this fixture's mock's
+    behaviour to assert it was wired up correctly."""
+    stub = MagicMock(name="export_invoice")
+    monkeypatch.setattr("invoice_ops.workers.tasks.export_invoice", stub)
+    return stub
+
+
 @pytest.fixture
 def client(db_engine) -> Iterator[TestClient]:
     with TestClient(create_app()) as test_client:

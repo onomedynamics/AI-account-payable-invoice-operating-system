@@ -83,3 +83,23 @@ def record_human_decision(
     advance(session, invoice, target, actor=actor, reason=reason)
     session.flush()
     return invoice
+
+
+def approve_and_export(
+    session: Session, invoice_id: uuid.UUID, *, actor: str, reason: str | None = None
+) -> Invoice:
+    """What the two UI-facing callers (JSON API, review UI) use for the
+    approve button: record the decision, then chain into export. Kept
+    separate from record_human_decision (which stays a pure transition, no
+    enqueue) so unit tests of the approval step alone are not also tests of
+    the export step -- the same separation used for every other stage, where
+    only the Celery task wrapper does chaining, never the service function."""
+    invoice = record_human_decision(session, invoice_id, approve=True, actor=actor, reason=reason)
+
+    # Commit before enqueuing: the export task opens its own session and must
+    # be able to see this transition (same reasoning as ingest_upload).
+    session.commit()
+    from invoice_ops.workers.tasks import export_invoice
+
+    export_invoice.delay(str(invoice.id))
+    return invoice

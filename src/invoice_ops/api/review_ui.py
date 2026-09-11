@@ -22,8 +22,8 @@ from sqlalchemy.orm import Session
 from invoice_ops.config import get_settings
 from invoice_ops.db import get_db
 from invoice_ops.domain.state import InvoiceStatus
-from invoice_ops.models import Extraction, Invoice, InvoiceMatch, Validation
-from invoice_ops.services.approval import record_human_decision
+from invoice_ops.models import Export, Extraction, Invoice, InvoiceMatch, Validation
+from invoice_ops.services.approval import approve_and_export, record_human_decision
 from invoice_ops.services.ingestion import UploadRejected, ingest_upload, validate_upload
 
 router = APIRouter(prefix="/ui", tags=["review-ui"])
@@ -67,6 +67,15 @@ def _validation_view(v: Validation) -> dict[str, Any]:
     return {"created_at": v.created_at, "passed": v.passed, "results": v.results}
 
 
+def _export_view(e: Export) -> dict[str, Any]:
+    return {
+        "created_at": e.created_at,
+        "storage_key": e.storage_key,
+        "contract_version": e.contract_version,
+        "signature": e.signature,
+    }
+
+
 @router.get("", response_class=RedirectResponse)
 def ui_root() -> RedirectResponse:
     return RedirectResponse(url="/ui/invoices", status_code=status.HTTP_303_SEE_OTHER)
@@ -102,6 +111,7 @@ def ui_invoice_detail(
         "matches": [_match_view(m) for m in reversed(invoice.matches)],
         "validations": [_validation_view(v) for v in reversed(invoice.validations)],
         "audit_log": list(reversed(invoice.audit_log)),
+        "exports": [_export_view(e) for e in reversed(invoice.exports)],
         "can_decide": invoice.status == InvoiceStatus.NEEDS_REVIEW,
     }
     return _templates.TemplateResponse(request, "detail.html", context)
@@ -129,14 +139,15 @@ def ui_upload(file: UploadFile, db: Session = Depends(get_db)) -> RedirectRespon
 def _decide(
     db: Session, invoice_id: uuid.UUID, *, approve: bool, actor: str, reason: str
 ) -> RedirectResponse:
+    clean_actor = actor.strip() or "reviewer"
+    clean_reason = reason.strip() or None
     try:
-        record_human_decision(
-            db,
-            invoice_id,
-            approve=approve,
-            actor=actor.strip() or "reviewer",
-            reason=reason.strip() or None,
-        )
+        if approve:
+            approve_and_export(db, invoice_id, actor=clean_actor, reason=clean_reason)
+        else:
+            record_human_decision(
+                db, invoice_id, approve=False, actor=clean_actor, reason=clean_reason
+            )
         flash = "Approved." if approve else "Rejected."
     except ValueError:
         return RedirectResponse(url="/ui/invoices", status_code=status.HTTP_303_SEE_OTHER)

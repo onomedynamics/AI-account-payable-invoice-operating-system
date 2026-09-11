@@ -146,3 +146,27 @@ def test_approve_from_wrong_state_is_409(client: TestClient):
 def test_approve_unknown_invoice_is_404(client: TestClient):
     resp = client.post("/invoices/00000000-0000-0000-0000-000000000000/approve", json={})
     assert resp.status_code == 404
+
+
+def test_approve_endpoint_enqueues_export(client: TestClient, db_session, stub_export_enqueue):
+    from invoice_ops.domain.state import InvoiceStatus
+
+    created = _upload(client, PDF_BYTES, "d.pdf", "application/pdf").json()
+    _force_status(db_session, created["id"], InvoiceStatus.NEEDS_REVIEW)
+
+    client.post(f"/invoices/{created['id']}/approve", json={})
+
+    stub_export_enqueue.delay.assert_called_once_with(created["id"])
+
+
+def test_reject_endpoint_does_not_enqueue_export(
+    client: TestClient, db_session, stub_export_enqueue
+):
+    from invoice_ops.domain.state import InvoiceStatus
+
+    created = _upload(client, PDF_BYTES, "e.pdf", "application/pdf").json()
+    _force_status(db_session, created["id"], InvoiceStatus.NEEDS_REVIEW)
+
+    client.post(f"/invoices/{created['id']}/reject", json={})
+
+    stub_export_enqueue.delay.assert_not_called()

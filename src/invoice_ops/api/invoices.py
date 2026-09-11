@@ -15,7 +15,7 @@ from invoice_ops.config import get_settings
 from invoice_ops.db import get_db
 from invoice_ops.domain.state import InvoiceStatus
 from invoice_ops.models import Invoice, InvoiceMatch, InvoiceSource
-from invoice_ops.services.approval import record_human_decision
+from invoice_ops.services.approval import approve_and_export, record_human_decision
 from invoice_ops.services.ingestion import UploadRejected, ingest_upload, validate_upload
 
 router = APIRouter(prefix="/invoices", tags=["invoices"])
@@ -93,11 +93,22 @@ class AuditLogOut(BaseModel):
     reason: str | None
 
 
+class ExportOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    created_at: datetime
+    storage_key: str
+    contract_version: str
+    signature: str
+
+
 class InvoiceDetailOut(InvoiceOut):
     extractions: list[ExtractionOut] = []
     matches: list[InvoiceMatchOut] = []
     validations: list[ValidationOut] = []
     audit_log: list[AuditLogOut] = []
+    exports: list[ExportOut] = []
 
 
 class ReviewDecisionIn(BaseModel):
@@ -183,9 +194,12 @@ def _record_decision(
     invoice_id: uuid.UUID, body: ReviewDecisionIn, db: Session, *, approve: bool
 ) -> InvoiceOut:
     try:
-        invoice = record_human_decision(
-            db, invoice_id, approve=approve, actor=body.actor, reason=body.reason
-        )
+        if approve:
+            invoice = approve_and_export(db, invoice_id, actor=body.actor, reason=body.reason)
+        else:
+            invoice = record_human_decision(
+                db, invoice_id, approve=False, actor=body.actor, reason=body.reason
+            )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except RuntimeError as exc:

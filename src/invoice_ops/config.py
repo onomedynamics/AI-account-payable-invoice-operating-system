@@ -57,6 +57,12 @@ class Settings(BaseSettings):
     # Extra attempts after the first on invalid / unparseable model output.
     llm_max_retries: int = 1
 
+    # --- Accounting export (M7, mocked) -------------------------------
+    # HMAC-SHA256 key signing every export artifact. The dev default is
+    # obviously insecure and must be overridden before this ever points at
+    # anything real.
+    export_signing_secret: str = "dev-insecure-signing-secret-change-me"
+
     # --- App ---------------------------------------------------------------
     app_env: Literal["dev", "ci", "prod"] = "dev"
 
